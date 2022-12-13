@@ -1,0 +1,8 @@
+<!-- Launch aruco_detector_node -->
+<!-- ... -->
+<launch>
+
+  <node pkg="aruco_detector" type="aruco_detector_node" name="aruco_detector_node" output="screen">
+
+  </node>
+</launch>
