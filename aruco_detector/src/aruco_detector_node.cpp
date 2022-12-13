@@ -16,13 +16,13 @@ cv::Mat& process_image(cv::Mat& image) {
     cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
     return image;
 }
-std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Mat& image, std::vector<std::vector<cv::Point2f>> rejected){
-    std::vector<int> ids;
-    std::vector<std::vector<cv::Point2f>> corners;
-    // 
-}
+// std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Mat& image, std::vector<std::vector<cv::Point2f>> rejected){
+//     std::vector<int> ids;
+//     std::vector<std::vector<cv::Point2f>> corners;
+//     //
+// }
 
-    void detect_aruco(cv::Mat& image) {
+void detect_aruco(cv::Mat& image) {
     // Detect the markers in the image
     std::vector<int> ids;
     std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -36,12 +36,10 @@ std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Ma
     // convert to rgb
     cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
     cv::aruco::drawDetectedMarkers(image, corners, ids);
-    if(ids.size() > 0) {
-        std::cout << "Detected " << ids.size() << " markers" << std::endl;
-    }
-    else{
-
-    }
+    // if (ids.size() > 0) {
+    //     std::cout << "Detected " << ids.size() << " markers" << std::endl;
+    // } else {
+    // }
     cv::Mat copy = image.clone();
     cv::aruco::drawDetectedMarkers(copy, rejected, cv::noArray(), cv::Scalar(255, 0, 0));
     // Show the image
