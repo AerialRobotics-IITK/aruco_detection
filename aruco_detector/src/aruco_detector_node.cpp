@@ -13,14 +13,49 @@ cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(c
 cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
 cv::Mat& process_image(cv::Mat& image) {
     // Make image gray
-    cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+    // cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
     return image;
 }
-// std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Mat& image, std::vector<std::vector<cv::Point2f>> rejected){
-//     std::vector<int> ids;
-//     std::vector<std::vector<cv::Point2f>> corners;
-//     //
-// }
+
+cv::Rect get_expanded_rectangle(std::vector<cv::Point2f> corners, int extra_height, int original_cols, int original_rows) {
+    auto rectangle = cv::boundingRect(corners);
+
+    rectangle.x = std::max(0, rectangle.x - extra_height);
+    rectangle.y -= std::max(0, rectangle.y - extra_height);
+    rectangle.width = std::min(original_cols - rectangle.x, rectangle.width + 2 * extra_height);
+    rectangle.height = std::min(original_rows - rectangle.y, rectangle.height + 2 * extra_height);
+
+    return rectangle;
+}
+std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Mat& image, std::vector<std::vector<cv::Point2f>> rejected) {
+    std::vector<int> ids;
+    std::vector<std::vector<cv::Point2f>> corners;
+    for (auto i : rejected) {
+        for (int height = 25; height <= 125; height = height + 25) {
+            auto rectangle = get_expanded_rectangle(i, height, image.cols, image.rows);
+
+            cv::Mat subimage = image(rectangle);
+            // convert to grayscale
+            cv::cvtColor(subimage, subimage, cv::COLOR_BGR2GRAY);
+            cv::imshow("expanded rectangles", subimage);
+            cv::waitKey(1);
+            // threshold subimage
+            cv::threshold(subimage, subimage, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+            cv::aruco::detectMarkers(subimage, dictionary, corners, ids, parameters);
+            if (ids.size() > 0) {
+                // correct the corners
+                for (auto& j : corners) {
+                    for (auto& k : j) {
+                        k.x += rectangle.x;
+                        k.y += rectangle.y;
+                    }
+                }
+                return std::make_pair(corners, ids[0]);
+            }
+        }
+    }
+    return std::make_pair(corners, -1);
+}
 
 void detect_aruco(cv::Mat& image) {
     // Detect the markers in the image
@@ -34,13 +69,22 @@ void detect_aruco(cv::Mat& image) {
     // Draw the markers
     // cv::aruco::drawDetectedMarkers(image, rejected, ids);
     // convert to rgb
-    cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-    cv::aruco::drawDetectedMarkers(image, corners, ids);
-    // if (ids.size() > 0) {
-    //     std::cout << "Detected " << ids.size() << " markers" << std::endl;
-    // } else {
-    // }
+    // cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+
+    if (ids.size() > 0) {
+        // do nothing
+
+    } else {
+        auto corners_ids = secondary_detection(image, rejected);
+        if (corners_ids.second != -1) {
+            corners = corners_ids.first;
+            ids.push_back(corners_ids.second);
+            ROS_ERROR("Secondary detection");
+        }
+    }
     cv::Mat copy = image.clone();
+
+    cv::aruco::drawDetectedMarkers(image, corners, ids);
     cv::aruco::drawDetectedMarkers(copy, rejected, cv::noArray(), cv::Scalar(255, 0, 0));
     // Show the image
     cv::imshow("image", image);
@@ -82,7 +126,7 @@ int main(int argc, char** argv) {
     cv::Mat markerCompressed = cv::aruco::Dictionary::getByteListFromBits(markerBits2);
     dictionary->bytesList.push_back(markerCompressed);
 
-    ros::Rate loop_rate(30);
+    ros::Rate loop_rate(60);
     while (ros::ok()) {
         ros::spinOnce();
         loop_rate.sleep();
