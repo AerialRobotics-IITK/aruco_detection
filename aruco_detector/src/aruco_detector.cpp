@@ -61,7 +61,7 @@ std::pair<std::vector<std::vector<cv::Point2f>>, int> ArucoDetector::secondary_d
     return std::make_pair(corners, -1);
 }
 
-void ArucoDetector::detect_aruco() {
+std::pair<std::vector<std::vector<cv::Point2f>>, std::vector<int>> ArucoDetector::detect_aruco() {
     std::vector<int> ids;
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     cv::aruco::detectMarkers(image, dictionary, corners, ids, parameters, rejected);
@@ -81,11 +81,13 @@ void ArucoDetector::detect_aruco() {
         // truncate corners to match ids
         corners.resize(ids.size());
     }
+
     cv::aruco::drawDetectedMarkers(image, corners, ids);
     cv::aruco::drawDetectedMarkers(copy, rejected, cv::noArray(), cv::Scalar(255, 0, 0));
     cv::imshow("image", image);
     cv::waitKey(1);
     cv::imshow("rejected", copy);
     cv::waitKey(1);
+    return std::make_pair(corners, ids);
 }
 }  // namespace Aruco

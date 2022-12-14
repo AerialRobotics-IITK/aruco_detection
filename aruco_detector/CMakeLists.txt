@@ -10,12 +10,23 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   sensor_msgs
+  geometry_msgs
+  message_generation
 )
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
+add_message_files(
+  FILES
+  aruco_detected.msg
+  aruco_message.msg
+)
 
-
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -25,13 +36,15 @@ catkin_package(
     cv_bridge
     image_transport
     sensor_msgs
+    message_runtime
 )
+
+
 
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
 )
-
 
 add_executable(aruco_detector_node src/aruco_detector_node.cpp src/aruco_detector.cpp)
 include_directories(

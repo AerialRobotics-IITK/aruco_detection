@@ -15,7 +15,7 @@ class ArucoDetector {
 
     cv::Rect get_expanded_rectangle(std::vector<cv::Point2f> corners, int extra_height, int original_cols, int original_rows);
     std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(std::vector<std::vector<cv::Point2f>> rejected);
-    void detect_aruco();
+    std::pair<std::vector<std::vector<cv::Point2f>>, std::vector<int>> detect_aruco();
 
     ArucoDetector(cv::Ptr<cv::aruco::Dictionary> dictionary_, cv::Ptr<cv::aruco::DetectorParameters> parameters_, std::string image_topic_name_);
     ~ArucoDetector();
