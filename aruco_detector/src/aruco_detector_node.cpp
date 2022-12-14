@@ -9,109 +9,33 @@
 #include <sensor_msgs/Image.h>
 // include aruco library
 #include <opencv2/aruco.hpp>
-cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
+
+#include "aruco_detector.hpp"
+
+// empty 6 by 6 dictionary
+cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::generateCustomDictionary(0, 6);
+// cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
 cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
-cv::Mat& process_image(cv::Mat& image) {
-    // Make image gray
-    // cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-    return image;
-}
+Aruco::ArucoDetector detector(dictionary, parameters, "/camera/image_raw");
 
-cv::Rect get_expanded_rectangle(std::vector<cv::Point2f> corners, int extra_height, int original_cols, int original_rows) {
-    auto rectangle = cv::boundingRect(corners);
-
-    rectangle.x = std::max(0, rectangle.x - extra_height);
-    rectangle.y -= std::max(0, rectangle.y - extra_height);
-    rectangle.width = std::min(original_cols - rectangle.x, rectangle.width + 2 * extra_height);
-    rectangle.height = std::min(original_rows - rectangle.y, rectangle.height + 2 * extra_height);
-
-    return rectangle;
-}
-std::pair<std::vector<std::vector<cv::Point2f>>, int> secondary_detection(cv::Mat& image, std::vector<std::vector<cv::Point2f>> rejected) {
-    std::vector<int> ids;
-    std::vector<std::vector<cv::Point2f>> corners;
-    for (auto i : rejected) {
-        for (int height = 25; height <= 125; height = height + 25) {
-            auto rectangle = get_expanded_rectangle(i, height, image.cols, image.rows);
-
-            cv::Mat subimage = image(rectangle);
-            // convert to grayscale
-            cv::cvtColor(subimage, subimage, cv::COLOR_BGR2GRAY);
-            cv::imshow("expanded rectangles", subimage);
-            cv::waitKey(1);
-            // threshold subimage
-            cv::threshold(subimage, subimage, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-            cv::aruco::detectMarkers(subimage, dictionary, corners, ids, parameters);
-            if (ids.size() > 0) {
-                // correct the corners
-                for (auto& j : corners) {
-                    for (auto& k : j) {
-                        k.x += rectangle.x;
-                        k.y += rectangle.y;
-                    }
-                }
-                return std::make_pair(corners, ids[0]);
-            }
-        }
-    }
-    return std::make_pair(corners, -1);
-}
-
-void detect_aruco(cv::Mat& image) {
-    // Detect the markers in the image
-    std::vector<int> ids;
-    std::vector<std::vector<cv::Point2f>> corners, rejected;
-    // add a marker to dictionary
-
-    // marker bits i
-    image = process_image(image);
-    cv::aruco::detectMarkers(image, dictionary, corners, ids, parameters, rejected);
-    // Draw the markers
-    // cv::aruco::drawDetectedMarkers(image, rejected, ids);
-    // convert to rgb
-    // cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-
-    if (ids.size() > 0) {
-        // do nothing
-
-    } else {
-        auto corners_ids = secondary_detection(image, rejected);
-        if (corners_ids.second != -1) {
-            corners = corners_ids.first;
-            ids.push_back(corners_ids.second);
-            ROS_ERROR("Secondary detection");
-        }
-    }
-    cv::Mat copy = image.clone();
-
-    cv::aruco::drawDetectedMarkers(image, corners, ids);
-    cv::aruco::drawDetectedMarkers(copy, rejected, cv::noArray(), cv::Scalar(255, 0, 0));
-    // Show the image
-    cv::imshow("image", image);
-    cv::waitKey(1);
-    cv::imshow("rejected", copy);
-    cv::waitKey(1);
-}
-
-cv::Mat image;
 void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     // Convert the image to OpenCV format
     try {
-        image = cv_bridge::toCvShare(msg, "bgr8")->image;
+        detector.image = cv_bridge::toCvShare(msg, "bgr8")->image;
     } catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
     // Detect the aruco markers
-    detect_aruco(image);
+    detector.detect_aruco();
 }
 
-std::string image_topic_name = "/camera/image_raw";
 int main(int argc, char** argv) {
     ros::init(argc, argv, "aruco_detector_node");
     ros::NodeHandle nh;
     // Make a subscriber
-    ros::Subscriber cam_sub = nh.subscribe(image_topic_name, 1, imageCallback);
+    ROS_INFO(detector.image_topic_name.c_str());
+    ros::Subscriber cam_sub = nh.subscribe(detector.image_topic_name, 1, imageCallback);
     // Create a custom dictionary of 1 marker
     // markers of 6x6 bits
     // unsigned char data[7][7] = {{0, 0, 0, 0, 0, 0, 0},
@@ -125,9 +49,38 @@ int main(int argc, char** argv) {
     cv::Mat markerBits2(6, 6, CV_8UC1, data);
     cv::Mat markerCompressed = cv::aruco::Dictionary::getByteListFromBits(markerBits2);
     dictionary->bytesList.push_back(markerCompressed);
+    // show all parameters
+    std::cout << "adaptiveThreshWinSizeMin: " << parameters->adaptiveThreshWinSizeMin << std::endl;
+    std::cout << "adaptiveThreshWinSizeMax: " << parameters->adaptiveThreshWinSizeMax << std::endl;
+    std::cout << "adaptiveThreshWinSizeStep: " << parameters->adaptiveThreshWinSizeStep << std::endl;
+    std::cout << "adaptiveThreshConstant: " << parameters->adaptiveThreshConstant << std::endl;
+    std::cout << "minMarkerPerimeterRate: " << parameters->minMarkerPerimeterRate << std::endl;
+    std::cout << "maxMarkerPerimeterRate: " << parameters->maxMarkerPerimeterRate << std::endl;
+    std::cout << "polygonalApproxAccuracyRate: " << parameters->polygonalApproxAccuracyRate << std::endl;
+    std::cout << "minCornerDistanceRate: " << parameters->minCornerDistanceRate << std::endl;
+    std::cout << "minDistanceToBorder: " << parameters->minDistanceToBorder << std::endl;
+    std::cout << "minMarkerDistanceRate: " << parameters->minMarkerDistanceRate << std::endl;
+    std::cout << "cornerRefinementWinSize: " << parameters->cornerRefinementWinSize << std::endl;
+    std::cout << "cornerRefinementMaxIterations: " << parameters->cornerRefinementMaxIterations << std::endl;
+    std::cout << "cornerRefinementMinAccuracy: " << parameters->cornerRefinementMinAccuracy << std::endl;
+    std::cout << "markerBorderBits: " << parameters->markerBorderBits << std::endl;
+    std::cout << "perspectiveRemovePixelPerCell: " << parameters->perspectiveRemovePixelPerCell << std::endl;
+    std::cout << "perspectiveRemoveIgnoredMarginPerCell: " << parameters->perspectiveRemoveIgnoredMarginPerCell << std::endl;
+    std::cout << "maxErroneousBitsInBorderRate: " << parameters->maxErroneousBitsInBorderRate << std::endl;
+    std::cout << "minOtsuStdDev: " << parameters->minOtsuStdDev << std::endl;
+    std::cout << "errorCorrectionRate: " << parameters->errorCorrectionRate << std::endl;
+    // check all fields in the dictionary
+    dictionary->markerSize = 4;
+    std::cout << "dictionary->bytesList.size(): " << dictionary->bytesList.size() << std::endl;
+    std::cout << "dictionary->markerSize: " << dictionary->markerSize << std::endl;
+    std::cout << "dictionary->maxCorrectionBits: " << dictionary->maxCorrectionBits << std::endl;
 
-    ros::Rate loop_rate(60);
+    detector.dictionary = dictionary;
+    // generate a 4x4 dictionary
+    // write 5 markers to file from the 4x4 dictionar
+    ros::Rate loop_rate(30);
     while (ros::ok()) {
+        //   ROS_INFO("About to spin");
         ros::spinOnce();
         loop_rate.sleep();
     }

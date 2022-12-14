@@ -32,5 +32,10 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(aruco_detector_node src/aruco_detector_node.cpp)
+
+add_executable(aruco_detector_node src/aruco_detector_node.cpp src/aruco_detector.cpp)
+include_directories(
+    include
+    ${catkin_INCLUDE_DIRS}
+)
 target_link_libraries(aruco_detector_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OpenCV_LIBS})
