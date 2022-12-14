@@ -45,9 +45,14 @@ int main(int argc, char** argv) {
     //     {0, 1, 0, 1, 1, 1, 0},
     //     {0, 1, 0, 0, 0, 0, 0},
     //     {0, 0, 0, 0, 0, 0, 0}};
-    unsigned char data[6][6] = {{0, 0, 0, 0, 0, 0}, {0, 1, 1, 1, 0, 0}, {0, 1, 0, 1, 1, 0}, {0, 0, 1, 0, 0, 0}, {0, 1, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
-    cv::Mat markerBits2(6, 6, CV_8UC1, data);
+    // unsigned char data[4][4] = {{0, 0, 0, 0, 0, 0}, {0, 1, 1, 1, 0, 0}, {0, 1, 0, 1, 1, 0}, {0, 0, 1, 0, 0, 0}, {0, 1, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
+    unsigned char data[4][4] = {{1, 0, 1, 1}, {0, 0, 1, 1}, {1, 0, 0, 1}, {1, 1, 1, 0}};
+    cv::Mat markerBits2(4, 4, CV_8UC1, data);
     cv::Mat markerCompressed = cv::aruco::Dictionary::getByteListFromBits(markerBits2);
+    dictionary->bytesList.push_back(markerCompressed);
+    unsigned char data_[4][4] = {{1, 1, 1, 0}, {1, 0, 1, 1}, {0, 1, 0, 0}, {1, 0, 0, 0}};
+    cv::Mat markerBits(4, 4, CV_8UC1, data_);
+    markerCompressed = cv::aruco::Dictionary::getByteListFromBits(markerBits);
     dictionary->bytesList.push_back(markerCompressed);
     // show all parameters
     std::cout << "adaptiveThreshWinSizeMin: " << parameters->adaptiveThreshWinSizeMin << std::endl;
@@ -71,10 +76,11 @@ int main(int argc, char** argv) {
     std::cout << "errorCorrectionRate: " << parameters->errorCorrectionRate << std::endl;
     // check all fields in the dictionary
     dictionary->markerSize = 4;
+    dictionary->maxCorrectionBits = 3;
     std::cout << "dictionary->bytesList.size(): " << dictionary->bytesList.size() << std::endl;
     std::cout << "dictionary->markerSize: " << dictionary->markerSize << std::endl;
     std::cout << "dictionary->maxCorrectionBits: " << dictionary->maxCorrectionBits << std::endl;
-
+    //   dictionary = cv::aruco::getPredefinedDictionary(cv::DICT_4X4_50);
     detector.dictionary = dictionary;
     // generate a 4x4 dictionary
     // write 5 markers to file from the 4x4 dictionar
