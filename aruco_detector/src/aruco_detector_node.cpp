@@ -42,16 +42,6 @@ int main(int argc, char** argv) {
     ROS_INFO(detector.image_topic_name.c_str());
     ros::Subscriber cam_sub = nh.subscribe(detector.image_topic_name, 1, imageCallback);
     ros::Publisher aruco_detected_pub = nh.advertise<aruco_detector::aruco_detected>("aruco_detector/aruco_detected", 1);
-    // Create a custom dictionary of 1 marker
-    // markers of 6x6 bits
-    // unsigned char data[7][7] = {{0, 0, 0, 0, 0, 0, 0},
-    //     {0, 1, 0, 0, 0, 0, 0},
-    //     {0, 1, 0, 0, 0, 0, 0},
-    //     {0, 1, 0, 1, 1, 1, 0},
-    //     {0, 1, 0, 1, 1, 1, 0},
-    //     {0, 1, 0, 0, 0, 0, 0},
-    //     {0, 0, 0, 0, 0, 0, 0}};
-    // unsigned char data[4][4] = {{0, 0, 0, 0, 0, 0}, {0, 1, 1, 1, 0, 0}, {0, 1, 0, 1, 1, 0}, {0, 0, 1, 0, 0, 0}, {0, 1, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
 
     detector.dictionary = dictionary;
     dictionary->maxCorrectionBits = 3;
@@ -77,6 +67,7 @@ int main(int argc, char** argv) {
         }
         // publish message
         aruco_detected_pub.publish(msg);
+        msg.detected_arucos.clear();
         loop_rate.sleep();
     }
     return 0;
