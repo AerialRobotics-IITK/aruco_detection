@@ -1,3 +1,4 @@
+#include "aruco_detector.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/aruco.hpp>
@@ -5,13 +6,17 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 
-#include "aruco_detector.hpp"
-
 namespace Aruco {
 
-ArucoDetector::ArucoDetector(cv::Ptr<cv::aruco::Dictionary> dictionary_, cv::Ptr<cv::aruco::DetectorParameters> parameters_, std::string image_topic_name_) {
-    dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_100);
-    parameters = cv::aruco::DetectorParameters::create();
+ArucoDetector::ArucoDetector(ros::NodeHandle& nh_,
+    cv::Ptr<cv::aruco::Dictionary> dictionary_,
+    cv::Ptr<cv::aruco::DetectorParameters> parameters_,
+    std::string image_topic_name_) {
+    dictionary = dictionary_;
+    parameters = parameters_;
+    cam_sub = nh_.subscribe(image_topic_name_, 1, &Aruco::ArucoDetector::imageCallback, this);
+    aruco_detected_pub = nh_.advertise<aruco_detector::aruco_detected>("aruco_detector/aruco_detected", 1);
+    dictionary->maxCorrectionBits = 3;
     image_topic_name = image_topic_name_;
 }
 
@@ -60,10 +65,10 @@ std::pair<std::vector<std::vector<cv::Point2f>>, int> ArucoDetector::secondary_d
     }
     return std::make_pair(corners, -1);
 }
-
-std::pair<std::vector<std::vector<cv::Point2f>>, std::vector<int>> ArucoDetector::detect_aruco() {
-    std::vector<int> ids;
-    std::vector<std::vector<cv::Point2f>> corners, rejected;
+void ArucoDetector::detect_aruco(bool publish) {
+    corners.clear();
+    ids.clear();
+    std::vector<std::vector<cv::Point2f>> rejected;
     cv::aruco::detectMarkers(image, dictionary, corners, ids, parameters, rejected);
 
     if (ids.size() > 0) {
@@ -88,6 +93,31 @@ std::pair<std::vector<std::vector<cv::Point2f>>, std::vector<int>> ArucoDetector
     cv::waitKey(1);
     cv::imshow("rejected", copy);
     cv::waitKey(1);
-    return std::make_pair(corners, ids);
+    if (publish) {
+        for (int i = 0; i < corners.size(); i++) {
+            aruco_detector::aruco_message marker;
+            marker.id = ids[i];
+            for (int j = 0; j < corners[i].size(); j++) {
+                geometry_msgs::Point point;
+                point.x = corners[i][j].x;
+                point.y = corners[i][j].y;
+                marker.corners.push_back(point);
+            }
+            msg.detected_arucos.push_back(marker);
+        }
+        // publish message
+        aruco_detected_pub.publish(msg);
+        msg.detected_arucos.clear();
+    }
+}
+void ArucoDetector::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+    try {
+        image = cv_bridge::toCvShare(msg, "bgr8")->image;
+    } catch (cv_bridge::Exception& e) {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+    // Detect the aruco markers
+    detect_aruco(true);
 }
 }  // namespace Aruco
