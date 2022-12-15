@@ -38,23 +38,28 @@ void calc_pose()
     // converting from drone frame to camera frame
     world_frame = camtoDrone*world_frame;
 
-    ROS_INFO("Estimated ArUco Pose : x=%f y=%f z=%f",pixel[0],pixel[1],pixel[2]);
+    ROS_INFO("Estimated ArUco Pose : x=%f y=%f z=%f",world_frame[0],world_frame[1],world_frame[2]);
     return;
 }
 
 void center_callBack(const aruco_detector::aruco_detected &coords)
 {
-    center_x = 0.0, center_y = 0.0;
-    for(int i=0; i<4; i++)
+    if(coords.detected_arucos.size() == 0)
+        ROS_WARN("ArUco Not Detected. Using previous pose");
+    else
     {
-        center_x += coords.detected_arucos[0].corners[i].x / 4.0;
-        center_y += coords.detected_arucos[0].corners[i].y / 4.0;
-        // sum_z = coords.detected_arucos[0].corners[i].x
+        center_x = 0.0, center_y = 0.0;
+        for(int i=0; i<4; i++)
+        {
+            center_x += coords.detected_arucos[0].corners[i].x / 4.0;
+            center_y += coords.detected_arucos[0].corners[i].y / 4.0;
+            // sum_z = coords.detected_arucos[0].corners[i].x
+        }
+        pixel[0] = center_x;
+        pixel[1] = center_y;
+        pixel[2] = 1.0f;
+        // ROS_INFO("x=%f,y=%f,z=%f", coords.detected_arucos[0].corners[0].x, pixel[1],pixel[2]);   
     }
-    pixel[0] = center_x;
-    pixel[1] = center_y;
-    pixel[2] = 1.0f;
-    ROS_INFO("x=%f,y=%f,z=%f", coords.detected_arucos[0].corners[0].x, pixel[1],pixel[2]);
     return;
 }
 
