@@ -11,11 +11,11 @@
 #include <rosgraph_msgs/Log.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <std_msgs/Float64.h>
-
+#include <pose_estimator/pose_message.h>
 #include <aruco_detector/aruco_detected.h>
 #include <aruco_detector/aruco_message.h>
 
-#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PointStamped.h>
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -30,7 +30,9 @@ class PoseEstimator {
     ros::Subscriber sub;
     ros::Subscriber sub_drone;  // /firefly/ground_truth/odometry
     ros::Subscriber sub_cam;
-    ros::Publisher pose_pub;
+    ros::Subscriber sub_color;
+    ros::Publisher pose_aruco_pub;
+    ros::Publisher pose_color_pub;
     ros::Subscriber mavros_sub;
 
     Eigen::Vector3f pixel;
@@ -58,21 +60,25 @@ class PoseEstimator {
     bool flag = true;
     float rolling_avg_count;
 
-    geometry_msgs::PoseStamped pose;
-    void calc_pose();
+    void calc_pose(bool from_aruco = false, bool from_color = false);
     void camera_info_callBack(const sensor_msgs::CameraInfo::ConstPtr& camera_params);
     void center_callBack(const aruco_detector::aruco_detected::ConstPtr& msg);
+    // NEW
+    void color_pose_callBack(const geometry_msgs::Point& color_center);
     void camera_pose_callBack(const rosgraph_msgs::Log Sample);
     void drone_orientation_callBack(const sensor_msgs::Imu::ConstPtr& drone_odom);
     void get_camera_rotation_matrix();
     void get_image_rotation_matrix_wrt_cam();
     float z_rotation_correction();
     void compute_pose_in_world_frame();
-    void publish_pose(bool detected = true);
+    void publish_aruco_pose(bool detected = true);
+    //NEW
+    void publish_color_pose(bool detected = true);
     void compute_rolling_avg();
     void set_msg_to_not_detected(geometry_msgs::PoseStamped& pose);
     PoseEstimator(ros::NodeHandle nh_,
         std::string aruco_sub_topic,
+        std::string color_sub_topic,
         std::string drone_sub_topic,
         std::string cam_sub_topic,
         std::string pub_topic,
