@@ -35,7 +35,7 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(color_detector_node src/color_detector_node.cpp )
+add_executable(color_detector_node src/color_detector_node.cpp src/color_detector.cpp )
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
