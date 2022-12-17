@@ -12,7 +12,6 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include <rosgraph_msgs/Log.h>
 
 namespace Pose {
 PoseEstimator::PoseEstimator(ros::NodeHandle nh_,
@@ -27,15 +26,17 @@ PoseEstimator::PoseEstimator(ros::NodeHandle nh_,
     sub_color = nh_.subscribe(color_sub_topic, 1, &PoseEstimator::color_pose_callBack, this);
     sub_drone = nh_.subscribe(drone_sub_topic, 1, &PoseEstimator::camera_pose_callBack, this);
     sub_cam = nh_.subscribe(cam_sub_topic, 1, &PoseEstimator::camera_info_callBack, this);
-    // pose_pub = nh_.advertise<geometry_msgs::PoseStamped>(pub_topic, 1);
-    // pose_pub = nh_.advertise<geometry_msgs::PointStamped>(pub_topic, 1);
+
     pose_pub = nh_.advertise<pose_estimator::pose_message>(pub_topic, 1);
-    mavros_sub = nh_.subscribe("/mavros/imu/data", 1, &PoseEstimator::drone_orientation_callBack, this);
     rolling_avg_count = rolling_average_count_;
     rolling_avg_wf = Eigen::Vector3f::Zero();
-
+    drone_height = 0;
     color_detected = false;
     aruco_detected = false;
+
+    cam_error_z = 16.4;
+    cam_error_x = 5.1;
+    cam_error_y = 4.2;
     return;
 }
 void PoseEstimator::calc_pose() {
@@ -44,6 +45,9 @@ void PoseEstimator::calc_pose() {
     Eigen::Vector3f coordi_cam_frame = (K.inverse()) * pixel;
     // check all values of coordi_cam_frame
     world_frame = cam_height * coordi_cam_frame;
+    world_frame[2] += cam_error_z;
+    world_frame[1] += cam_error_y;
+    world_frame[0] += cam_error_x;
     compute_rolling_avg();
     publish_pose(true);
     return;
@@ -126,11 +130,11 @@ void PoseEstimator::drone_orientation_callBack(const sensor_msgs::Imu::ConstPtr&
     // std::cout << "image_rot_mat_wrt_cam" << std::endl << image_rot_mat_wrt_cam << std::endl;
 }
 
-void PoseEstimator::camera_pose_callBack(const rosgraph_msgs::Log Sample) {
-    drone_height = 56.5;
-    camera_pose[0] = 0.0;           // drone_odom.pose.pose.position.x - cam_error_x;
-    camera_pose[1] = 0.0;           // drone_odom.pose.pose.position.y - cam_error_y;
-    camera_pose[2] = drone_height;  // drone_odom.pose.pose.position.z - cam_error_z;
+void PoseEstimator::camera_pose_callBack(const geometry_msgs::PoseStamped::ConstPtr& msg) {
+    drone_height = (drone_height * rolling_avg_count + msg->pose.position.z) / (rolling_avg_count + 1);
+    camera_pose[0] = 0.0;                         // drone_odom.pose.pose.position.x - cam_error_x;
+    camera_pose[1] = 0.0;                         // drone_odom.pose.pose.position.y - cam_error_y;5.0
+    camera_pose[2] = drone_height - cam_error_z;  // drone_odom.pose.pose.position.z - cam_error_z;16.4
 
     // scaling_factor provided camera is nadir!
     for (int i = 0; i < 3; i++)

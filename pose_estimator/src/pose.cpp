@@ -17,8 +17,13 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "aruco_pose_estimator");
     ros::NodeHandle nh;
     ros::Rate loop_rate(30);
-    Pose::PoseEstimator pose_estimator(nh, "/aruco_detector/aruco_detected", "/color_detector/color_detected", 
-                                            "/rosout", "/camera/camera_info", "/pose_estimator/aruco_pose", 17);
+    Pose::PoseEstimator pose_estimator(nh,
+        "/aruco_detector/aruco_detected",
+        "/color_detector/color_detected",
+        "/mavros/local_position/pose",
+        "/camera/camera_info",
+        "/pose_estimator/aruco_pose",
+        17);
     while (ros::ok()) {
         ros::spinOnce();
         geometry_msgs::PoseStamped pose;

@@ -17,6 +17,7 @@
 
 #include "pose_estimator/pose_message.h"
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -55,7 +56,7 @@ class PoseEstimator {
     float center_y = 0.0;
     double cam_error_x = 0.0;
     double cam_error_y = 0.0;
-    double cam_error_z = 0.0;
+    double cam_error_z;
     int count = 0;
     bool flag = true;
     float rolling_avg_count;
@@ -71,7 +72,7 @@ class PoseEstimator {
 
     // NEW
     void color_pose_callBack(const geometry_msgs::Point& color_center);
-    void camera_pose_callBack(const rosgraph_msgs::Log Sample);
+    void camera_pose_callBack(const geometry_msgs::PoseStamped::ConstPtr& msg);
     void drone_orientation_callBack(const sensor_msgs::Imu::ConstPtr& drone_odom);
     void get_camera_rotation_matrix();
     void get_image_rotation_matrix_wrt_cam();
