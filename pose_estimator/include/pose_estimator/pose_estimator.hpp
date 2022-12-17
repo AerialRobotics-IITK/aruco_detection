@@ -1,20 +1,21 @@
 // # pragma once
 
+#include <aruco_detector/aruco_detected.h>
+#include <aruco_detector/aruco_message.h>
 #include <bits/stdc++.h>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 #include <gazebo_msgs/ModelStates.h>
 #include <iostream>
 #include <nav_msgs/Odometry.h>
+#include <pose_estimator/pose_message.h>
 #include <ros/console.h>
 #include <ros/ros.h>
 #include <rosgraph_msgs/Log.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <std_msgs/Float64.h>
-#include <pose_estimator/pose_message.h>
-#include <aruco_detector/aruco_detected.h>
-#include <aruco_detector/aruco_message.h>
 
+#include "pose_estimator/pose_message.h"
 #include <geometry_msgs/PointStamped.h>
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
@@ -31,8 +32,7 @@ class PoseEstimator {
     ros::Subscriber sub_drone;  // /firefly/ground_truth/odometry
     ros::Subscriber sub_cam;
     ros::Subscriber sub_color;
-    ros::Publisher pose_aruco_pub;
-    ros::Publisher pose_color_pub;
+    ros::Publisher pose_pub;
     ros::Subscriber mavros_sub;
 
     Eigen::Vector3f pixel;
@@ -60,9 +60,15 @@ class PoseEstimator {
     bool flag = true;
     float rolling_avg_count;
 
-    void calc_pose(bool from_aruco = false, bool from_color = false);
+    pose_estimator::pose_message pose;
+
+    void calc_pose();
     void camera_info_callBack(const sensor_msgs::CameraInfo::ConstPtr& camera_params);
     void center_callBack(const aruco_detector::aruco_detected::ConstPtr& msg);
+
+    bool aruco_detected;
+    bool color_detected;
+
     // NEW
     void color_pose_callBack(const geometry_msgs::Point& color_center);
     void camera_pose_callBack(const rosgraph_msgs::Log Sample);
@@ -71,11 +77,10 @@ class PoseEstimator {
     void get_image_rotation_matrix_wrt_cam();
     float z_rotation_correction();
     void compute_pose_in_world_frame();
-    void publish_aruco_pose(bool detected = true);
-    //NEW
-    void publish_color_pose(bool detected = true);
+    void publish_pose(bool detected);
+    // NEW
     void compute_rolling_avg();
-    void set_msg_to_not_detected(geometry_msgs::PoseStamped& pose);
+    void set_msg_to_not_detected();
     PoseEstimator(ros::NodeHandle nh_,
         std::string aruco_sub_topic,
         std::string color_sub_topic,

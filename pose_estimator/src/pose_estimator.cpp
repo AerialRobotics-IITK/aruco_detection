@@ -29,21 +29,23 @@ PoseEstimator::PoseEstimator(ros::NodeHandle nh_,
     sub_cam = nh_.subscribe(cam_sub_topic, 1, &PoseEstimator::camera_info_callBack, this);
     // pose_pub = nh_.advertise<geometry_msgs::PoseStamped>(pub_topic, 1);
     // pose_pub = nh_.advertise<geometry_msgs::PointStamped>(pub_topic, 1);
-    pose_aruco_pub = nh_.advertise<pose_estimator::pose_message>(pub_topic, 1);
-    pose_color_pub = nh_.advertise<pose_estimator::pose_message>(pub_topic, 1);
+    pose_pub = nh_.advertise<pose_estimator::pose_message>(pub_topic, 1);
     mavros_sub = nh_.subscribe("/mavros/imu/data", 1, &PoseEstimator::drone_orientation_callBack, this);
     rolling_avg_count = rolling_average_count_;
     rolling_avg_wf = Eigen::Vector3f::Zero();
+
+    color_detected = false;
+    aruco_detected = false;
     return;
 }
-void PoseEstimator::calc_pose(bool from_aruco, bool from_color) {
+void PoseEstimator::calc_pose() {
     camtoDrone << 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f;
     // Coordinates of center of aruco wrt camera frame
     Eigen::Vector3f coordi_cam_frame = (K.inverse()) * pixel;
     // check all values of coordi_cam_frame
     world_frame = cam_height * coordi_cam_frame;
     compute_rolling_avg();
-    publish_aruco_pose(true);
+    publish_pose(true);
     return;
 }
 void PoseEstimator::center_callBack(const aruco_detector::aruco_detected::ConstPtr& coords) {
@@ -57,7 +59,8 @@ void PoseEstimator::center_callBack(const aruco_detector::aruco_detected::ConstP
         pixel[0] = center_x;
         pixel[1] = center_y;
         pixel[2] = 1.0f;
-
+        aruco_detected = true;
+        pose.id = coords->detected_arucos[0].id;
         // ROS_INFO("x=%f,y=%f,z=%f", coords.detected_arucos[0].corners[0].x, pixel[1],pixel[2]);
         calc_pose();
     }
@@ -67,20 +70,24 @@ void PoseEstimator::center_callBack(const aruco_detector::aruco_detected::ConstP
     //     // THIS IS CALLED BUT LOOK IF COLOR IS DETECTED THEN YOU GOTTA PULISH BUT ELSE FALSE
     // }
     else {
-        publish_aruco_pose(false);
+        aruco_detected = false;
+    }
+    if (!aruco_detected && !color_detected) {
+        publish_pose(false);
+        pose.id = -1;
     }
     return;
 }
 
-void PoseEstimator::color_pose_callBack(const geometry_msgs::Point& color_center)
-{
-    if(color_center.z == -1)
-        publish_color_pose(false);
-    else
-    {
+void PoseEstimator::color_pose_callBack(const geometry_msgs::Point& color_center) {
+    if (color_center.z == -1) {
+        color_detected = false;
+    } else {
         pixel[0] = color_center.x;
         pixel[1] = color_center.y;
         pixel[2] = 1.0f;
+        color_detected = true;
+        pose.id = 75;
         calc_pose();
     }
 }
@@ -166,79 +173,31 @@ void PoseEstimator::compute_pose_in_world_frame() {
     // ROS_INFO("length=%f", length);
     world_frame = length * unit_world_frame;
 }
-void PoseEstimator::publish_aruco_pose(bool detected) {
-    // publish pose
-    // geometry_msgs::PoseStamped pose;
-    // geomerty_msgs::PointStamped pose;
-    pose_estimator::pose_message pose;
-
-    pose.header.stamp = ros::Time::now();
+void PoseEstimator::publish_pose(bool detected) {
+    pose.center.header.stamp = ros::Time::now();
 
     if (!detected) {
-        set_msg_to_not_detected(pose);
-        pose_aruco_pub.publish(pose);
+        set_msg_to_not_detected();
+        pose_pub.publish(pose);
         return;
     }
-    // pose.pose.orientation.w = 1;
-    // pose.pose.orientation.x = 1;
-    // pose.pose.orientation.y = 1;
-    // pose.pose.orientation.z = 1;
 
-    // pose.pose.position.x = rolling_avg_wf[0];
-    // pose.pose.position.y = rolling_avg_wf[1];
-    // pose.pose.position.z = rolling_avg_wf[2];
+    pose.center.point.x = rolling_avg_wf[0];
+    pose.center.point.y = rolling_avg_wf[1];
+    pose.center.point.z = rolling_avg_wf[2];
 
-    pose.center.x = rolling_avg_wf[0];
-    pose.center.y = rolling_avg_wf[1];
-    pose.center.z = rolling_avg_wf[2];
-    // pose.id = 0;
-    pose_aruco_pub.publish(pose);
+    pose_pub.publish(pose);
     return;
 }
-void PoseEstimator::publish_color_pose(bool detected) {
-    // publish pose
-    // geometry_msgs::PoseStamped pose;
-    // geomerty_msgs::PointStamped pose;
-    pose_estimator::pose_message pose;
 
-    pose.header.stamp = ros::Time::now();
-
-    if (!detected) {
-        set_msg_to_not_detected(pose);
-        pose_color_pub.publish(pose);
-        return;
-    }
-    // pose.pose.orientation.w = 1;
-    // pose.pose.orientation.x = 1;
-    // pose.pose.orientation.y = 1;
-    // pose.pose.orientation.z = 1;
-
-    // pose.pose.position.x = rolling_avg_wf[0];
-    // pose.pose.position.y = rolling_avg_wf[1];
-    // pose.pose.position.z = rolling_avg_wf[2];
-
-    pose.center.x = rolling_avg_wf[0];
-    pose.center.y = rolling_avg_wf[1];
-    pose.center.z = rolling_avg_wf[2];
-    // pose.id = 0;
-    pose_color_pub.publish(pose);
-    return;
-}
 void PoseEstimator::compute_rolling_avg() {
     rolling_avg_wf = (rolling_avg_wf * rolling_avg_count + world_frame) / (rolling_avg_count + 1);
 }
 // void PoseEstimator::set_msg_to_not_detected(geometry_msgs::PoseStamped& pose) {
-void PoseEstimator::set_msg_to_not_detected(pose_estimator::pose_message& pose) {
-    // pose.pose.orientation.w = -1e6;
-    // pose.pose.orientation.x = -1e6;
-    // pose.pose.orientation.y = -1e6;
-    // pose.pose.orientation.z = -1e6;
-    // pose.pose.position.x = -1e6;
-    // pose.pose.position.y = -1e6;
-    // pose.pose.position.z = -1e6;
-    pose.center.x = 0;
-    pose.center.y = 0;
-    pose.center.z = 0;
+void PoseEstimator::set_msg_to_not_detected() {
+    pose.center.point.x = 0;
+    pose.center.point.y = 0;
+    pose.center.point.z = 0;
     pose.id = -1;
     return;
 }
