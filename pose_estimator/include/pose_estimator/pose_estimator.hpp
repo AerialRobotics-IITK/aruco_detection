@@ -22,6 +22,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <sensor_msgs/Imu.h>
 namespace Pose {
 class PoseEstimator {
   public:
@@ -29,19 +30,25 @@ class PoseEstimator {
     ros::Subscriber sub;
     ros::Subscriber sub_drone;  // /firefly/ground_truth/odometry
     ros::Subscriber sub_cam;
-    ros::Publisher pub;
+    ros::Publisher pose_pub;
+    ros::Subscriber mavros_sub;
 
     Eigen::Vector3f pixel;
-    Eigen::Vector3f coordi_cam_frame;
-    Eigen::Vector3f world_frame;
+    Eigen::Vector3f cam_frame;
     Eigen::Vector3f camera_pose;
+    Eigen::Vector3f world_frame;
+    Eigen::Vector3f rolling_avg_wf;
 
     Eigen::Matrix3f R;
     Eigen::Matrix3f K;
     Eigen::Matrix3f cam_height;
     Eigen::Matrix3f camtoDrone;
+    float drone_height;
 
-    float pix[3];
+    Eigen::Matrix3f cam_rot_mat;
+    Eigen::Matrix3f image_rot_mat_wrt_cam;
+    Eigen::Matrix3f cam_rot_mat_inversed;
+    Eigen::Matrix3f image_rot_mat_wrt_cam_inversed;
     float center_x = 0.0;
     float center_y = 0.0;
     double cam_error_x = 0.0;
@@ -49,14 +56,27 @@ class PoseEstimator {
     double cam_error_z = 0.0;
     int count = 0;
     bool flag = true;
+    float rolling_avg_count;
 
     geometry_msgs::PoseStamped pose;
-
     void calc_pose();
     void camera_info_callBack(const sensor_msgs::CameraInfo::ConstPtr& camera_params);
     void center_callBack(const aruco_detector::aruco_detected::ConstPtr& msg);
-    void camera_pose_callBack(const rosgraph_msgs::Log Sample);  //(nav_msgs::Odometry drone_odom)
-    PoseEstimator(ros::NodeHandle nh_, std::string aruco_sub_topic, std::string drone_sub_topic, std::string cam_sub_topic, std::string pub_topic);
+    void camera_pose_callBack(const rosgraph_msgs::Log Sample);
+    void drone_orientation_callBack(const sensor_msgs::Imu::ConstPtr& drone_odom);
+    void get_camera_rotation_matrix();
+    void get_image_rotation_matrix_wrt_cam();
+    float z_rotation_correction();
+    void compute_pose_in_world_frame();
+    void publish_pose(bool detected = true);
+    void compute_rolling_avg();
+    void set_msg_to_not_detected(geometry_msgs::PoseStamped& pose);
+    PoseEstimator(ros::NodeHandle nh_,
+        std::string aruco_sub_topic,
+        std::string drone_sub_topic,
+        std::string cam_sub_topic,
+        std::string pub_topic,
+        float rolling_avg_count_);
     ~PoseEstimator(){};
 };
 }  // namespace Pose
