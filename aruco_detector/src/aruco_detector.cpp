@@ -18,6 +18,8 @@ ArucoDetector::ArucoDetector(ros::NodeHandle& nh_,
     aruco_detected_pub = nh_.advertise<aruco_detector::aruco_detected>("aruco_detector/aruco_detected", 1);
     dictionary->maxCorrectionBits = 3;
     image_topic_name = image_topic_name_;
+    // truncate dictionary to 10 ids
+    dictionary->bytesList.resize(15);
 }
 
 ArucoDetector::~ArucoDetector() {
@@ -37,13 +39,14 @@ cv::Rect ArucoDetector::get_expanded_rectangle(std::vector<cv::Point2f> corners,
 std::pair<std::vector<std::vector<cv::Point2f>>, int> ArucoDetector::secondary_detection(std::vector<std::vector<cv::Point2f>> rejected) {
     std::vector<int> ids;
     std::vector<std::vector<cv::Point2f>> corners;
-    // remove the rejected ones that are too small
-    rejected.erase(std::remove_if(rejected.begin(), rejected.end(), [](std::vector<cv::Point2f> i) { return cv::contourArea(i) < 700; }), rejected.end());
+    // remove the rejected markers that are too small
+    rejected.erase(std::remove_if(rejected.begin(), rejected.end(), [](std::vector<cv::Point2f> i) { return cv::contourArea(i) < 500; }), rejected.end());
+
     // order in descending order of area
     std::sort(rejected.begin(), rejected.end(), [](std::vector<cv::Point2f> i, std::vector<cv::Point2f> j) { return cv::contourArea(i) > cv::contourArea(j); });
 
     for (auto i : rejected) {
-        for (int height = 10; height <= 120; height = height + 10) {
+        for (int height = 10; height <= 120; height = height + 20) {
             auto rectangle = get_expanded_rectangle(i, height, image.cols, image.rows);
 
             cv::Mat subimage = image(rectangle);
@@ -72,7 +75,6 @@ void ArucoDetector::detect_aruco(bool publish) {
     cv::aruco::detectMarkers(image, dictionary, corners, ids, parameters, rejected);
 
     if (ids.size() > 0) {
-        // do nothing
     } else {
         auto corners_ids = secondary_detection(rejected);
         if (corners_ids.second != -1) {
@@ -88,10 +90,8 @@ void ArucoDetector::detect_aruco(bool publish) {
     }
 
     cv::aruco::drawDetectedMarkers(image, corners, ids);
-    cv::aruco::drawDetectedMarkers(copy, rejected, cv::noArray(), cv::Scalar(255, 0, 0));
     cv::imshow("image", image);
-    cv::waitKey(1);
-    cv::imshow("rejected", copy);
+
     cv::waitKey(1);
     if (publish) {
         for (int i = 0; i < corners.size(); i++) {
