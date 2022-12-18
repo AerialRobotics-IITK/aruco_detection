@@ -19,7 +19,8 @@ ArucoDetector::ArucoDetector(ros::NodeHandle& nh_,
     dictionary->maxCorrectionBits = 3;
     image_topic_name = image_topic_name_;
     // truncate dictionary to 10 ids
-    dictionary->bytesList.resize(15);
+    dictionary->bytesList.resize(0);
+    add_arucos_to_dictionary();
 }
 
 ArucoDetector::~ArucoDetector() {
@@ -109,6 +110,30 @@ void ArucoDetector::detect_aruco(bool publish) {
         aruco_detected_pub.publish(msg);
         msg.detected_arucos.clear();
     }
+}
+void ArucoDetector::add_arucos_to_dictionary() {
+    // 1 0 0 0
+    // 1 1 1 1
+    // 1 0 1 1
+    // 0 1 0 1
+    cv::Mat marker_bits = (cv::Mat_<unsigned char>(4, 4) << 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1);
+    marker_bits = cv::aruco::Dictionary::getByteListFromBits(marker_bits);
+    dictionary->bytesList.push_back(marker_bits);
+    // 1 1 1 0
+    // 1 0 1 1
+    // 0 1 0 0
+    // 1 0 0 0
+    cv::Mat marker_bits2 = (cv::Mat_<unsigned char>(4, 4) << 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0);
+    marker_bits2 = cv::aruco::Dictionary::getByteListFromBits(marker_bits2);
+    dictionary->bytesList.push_back(marker_bits2);
+
+    // 1 1 0 1
+    // 1 0 0 0
+    // 1 0 1 1
+    // 0 1 1 1
+    cv::Mat marker_bits3 = (cv::Mat_<unsigned char>(4, 4) << 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1);
+    marker_bits3 = cv::aruco::Dictionary::getByteListFromBits(marker_bits3);
+    dictionary->bytesList.push_back(marker_bits3);
 }
 void ArucoDetector::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     try {
