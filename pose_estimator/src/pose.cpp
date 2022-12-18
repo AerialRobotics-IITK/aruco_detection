@@ -16,7 +16,7 @@
 int main(int argc, char** argv) {
     ros::init(argc, argv, "aruco_pose_estimator");
     ros::NodeHandle nh;
-    ros::Rate loop_rate(30);
+    ros::Rate loop_rate(10);
     Pose::PoseEstimator pose_estimator(nh,
         "/aruco_detector/aruco_detected",
         "/color_detector/color_detected",

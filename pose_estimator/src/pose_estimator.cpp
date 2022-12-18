@@ -37,6 +37,7 @@ PoseEstimator::PoseEstimator(ros::NodeHandle nh_,
     cam_error_z = 16.4;
     cam_error_x = 5.1;
     cam_error_y = 4.2;
+
     return;
 }
 void PoseEstimator::calc_pose() {
@@ -106,6 +107,8 @@ void PoseEstimator::camera_info_callBack(const sensor_msgs::CameraInfo::ConstPtr
                 //     K(i, j) = K(i, j) * 0.01;
                 count++;
             }
+        K = K * 0.5;
+        K(2, 2) = 1.0;
         // get inverse
     }
 
