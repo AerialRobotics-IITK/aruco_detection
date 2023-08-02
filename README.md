@@ -28,12 +28,12 @@ git clone https://github.com/AerialRobotics-IITK/aruco_detection.git .
     On the first run of ``catkin build`` or ``catkin_make``, it compiles the .msg files to .h files. Run ``catkin build`` or ``catkin_make`` again to get rid of the error
 
 * 
-```
-fatal error: libv4l2.h: No such file or directory
-27 | #include <libv4l2.h>
-
-```
-You will need to install v4l2 libraries first. First run, ``sudo apt-get update``. Then, run ``sudo apt-get install libv4l-dev`` and ``sudo apt-get -y install v4l-utils``
+    ```
+    fatal error: libv4l2.h: No such file or directory
+    27 | #include <libv4l2.h>
+    
+    ```
+    You will need to install v4l2 libraries first. First run, ``sudo apt-get update``. Then, run ``sudo apt-get install libv4l-dev`` and ``sudo apt-get -y install v4l-utils``
  
 
 ## Issues' Changelog
